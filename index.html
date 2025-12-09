@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Assignment 4 – Regional Metrics Radial Viz</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- D3 v7 -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+  <header class="header">
+    <h1>How do the
+      <select id="region-select"></select>
+      on average compare to the other regions across metrics?
+    </h1>
+  </header>
+
+  <main>
+    <section id="viz-container">
+      <!-- SVG will be created by layout.js -->
+    </section>
+  </main>
+
+  <!-- Order matters: data -> layout -> interaction -->
+  <script src="data.js"></script>
+  <script src="layout.js"></script>
+  <script src="interaction.js"></script>
+</body>
+</html>
