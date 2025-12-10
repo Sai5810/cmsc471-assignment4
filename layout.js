@@ -1,239 +1,334 @@
 // layout.js
-// Person A: set up the SVG, radial axes, circles, purple arc, and center text.
-// Expose initRadialChart() and updateRadialChart(selectedRegion).
+// Radial layout with center text, base arc, highlight arc, and metric ranges
 
-let svg, gRoot, radius, innerRadius;
-let tooltipDiv;
+let svg, gRoot, tooltipDiv;
+let innerRadius, radius;
 let currentRegion = REGIONS[0];
-
-// Store current metric order so Person B can re-order it.
 let currentMetricOrder = [...METRICS];
 
-function initRadialChart() {
-  const width = 900;
-  const height = 700;
-  radius = Math.min(width, height) / 2 - 60;
-  innerRadius = 80;
+// Scales and generators
+const scales = {
+  angle: d3.scaleBand().range([0, 2 * Math.PI]).paddingInner(0.18),
+  r: d3.scaleLinear().domain([0, 1])
+};
 
+const arcs = {
+  wedge: d3.arc(),
+  base: d3.arc(),
+  highlight: d3.arc()
+};
+
+function initRadialChart() {
+  const [w, h] = [900, 700];
+  innerRadius = 100;
+  radius = Math.min(w, h) / 2 - 60;
+
+  // Setup SVG
   svg = d3.select("#viz-container")
     .append("svg")
-    .attr("width", width)
-    .attr("height", height);
+    .attr("width", w)
+    .attr("height", h);
 
   gRoot = svg.append("g")
-    .attr("transform", `translate(${width / 2}, ${height / 2})`);
+    .attr("transform", `translate(${w / 2},${h / 2})`);
 
-  // Tooltip (HTML overlay)
   tooltipDiv = d3.select("body")
     .append("div")
     .attr("class", "tooltip");
 
-  // Angle scale based on currentMetricOrder
-  const angleScale = d3.scaleBand()
-    .domain(currentMetricOrder)
-    .range([0, 2 * Math.PI])
-    .paddingInner(0.05);
+  // Configure scales
+  scales.angle.domain(currentMetricOrder);
+  scales.r.range([innerRadius + 10, radius - 10]);
 
-  // Group for metric wedges (for hover background)
-  const wedges = gRoot.append("g")
+  // Configure arcs
+  arcs.wedge.innerRadius(innerRadius).outerRadius(radius + 20);
+  const arcR = [radius + 4, radius + 10];
+  arcs.base.innerRadius(arcR[0]).outerRadius(arcR[1]);
+  arcs.highlight.innerRadius(arcR[0]).outerRadius(arcR[1]);
+
+  // Build static elements
+  buildWedges();
+  buildAxes();
+  buildMetricGroups();
+  buildCenterText();
+  buildArcs();
+
+  updateRadialChart(currentRegion);
+}
+
+function buildWedges() {
+  gRoot.append("g")
     .attr("class", "metric-wedges")
     .selectAll(".metric-wedge")
     .data(currentMetricOrder)
-    .enter()
-    .append("path")
+    .join("path")
     .attr("class", "metric-wedge")
     .attr("d", d => {
-      const a0 = angleScale(d);
-      const a1 = a0 + angleScale.bandwidth();
-      const arc = d3.arc()
-        .innerRadius(innerRadius)
-        .outerRadius(radius + 20);
-      return arc({
-        startAngle: a0,
-        endAngle: a1
-      });
+      const [a0, a1] = [scales.angle(d), scales.angle(d) + scales.angle.bandwidth()];
+      return arcs.wedge({ startAngle: a0, endAngle: a1 });
     });
+}
 
-  // Axis lines + labels
+function buildAxes() {
   const axes = gRoot.append("g")
     .attr("class", "metric-axes")
     .selectAll(".metric-axis")
     .data(currentMetricOrder)
-    .enter()
-    .append("g")
+    .join("g")
     .attr("class", "metric-axis")
-    .attr("transform", d => {
-      const angle = angleScale(d) + angleScale.bandwidth() / 2 - Math.PI / 2;
-      return `rotate(${(angle * 180) / Math.PI})`;
-    });
+    .attr("transform", d => `rotate(${getRotation(d)})`);
 
   axes.append("line")
+    .attr("class", "metric-axis-base")
     .attr("x1", innerRadius)
     .attr("x2", radius)
-    .attr("stroke", "#ddd");
+    .attr("stroke", "#f0f0f0");
 
   axes.append("text")
     .attr("class", "metric-label")
-    .attr("x", radius + 18)
-    .attr("y", 0)
-    .attr("dy", "0.35em")
-    .text(d => d);
+    .attr("x", d => {
+      const angle = scales.angle(d) + scales.angle.bandwidth() / 2;
+      return innerRadius + 40;
+    })
+    .attr("dy", d => {
+      const angle = scales.angle(d) + scales.angle.bandwidth() / 2;
+      if (angle < Math.PI) {
+        return "-0.5em";
+      } else {
+        return "1em";
+      }
+    })
+    .attr("transform", d => {
+      const angle = scales.angle(d) + scales.angle.bandwidth() / 2;
+      const degrees = (angle * 180) / Math.PI - 90;
+      const x = innerRadius + 40;
+      
+      // Flip text on left side for readability
+      if (angle > Math.PI / 2 && angle < 3 * Math.PI / 2) {
+        return `rotate(${degrees + 180}, ${x}, 0)`;
+      }
+      return "";
+    })
+    .attr("text-anchor", "middle")
+    .text(d => d.toUpperCase());
+}
 
-  // Region circles (one group per metric)
-  const metricGroups = gRoot.append("g")
+function buildMetricGroups() {
+  const groups = gRoot.append("g")
     .attr("class", "metric-groups")
     .selectAll(".metric-group")
     .data(currentMetricOrder)
-    .enter()
-    .append("g")
+    .join("g")
     .attr("class", "metric-group")
     .attr("data-metric", d => d)
-    .attr("transform", d => {
-      const angle = angleScale(d) + angleScale.bandwidth() / 2 - Math.PI / 2;
-      return `rotate(${(angle * 180) / Math.PI})`;
-    });
+    .attr("transform", d => `rotate(${getRotation(d)})`);
 
-  // For position along axis, use a simple radial scale [0,1] -> [innerRadius, radius]
-  const rScale = d3.scaleLinear()
-    .domain([0, 1])
-    .range([innerRadius, radius]);
-
-  // For each metric, add circles for regions
-  metricGroups.each(function(metric) {
+  groups.each(function(metric) {
     const g = d3.select(this);
-    const ranking = getRegionRankingForMetric(metric); // [{region, value}, ...]
+    const ranking = getRegionRankingForMetric(metric);
+    if (!ranking.length) return;
 
+    const [minVal, maxVal] = d3.extent(ranking, d => d.value);
+    const [rMin, rMax] = [scales.r(minVal), scales.r(maxVal)];
+
+    // Range lines
+    g.append("line")
+      .attr("class", "metric-range-solid")
+      .attr("x1", innerRadius)
+      .attr("x2", rMin);
+
+    g.append("line")
+      .attr("class", "metric-range-dashed")
+      .attr("x1", rMin)
+      .attr("x2", rMax);
+
+    // Position circles to avoid overlap using force simulation approach
+    const circleRadius = 4;
+    const positions = ranking.map((d, i) => ({
+      ...d,
+      x: scales.r(d.value),
+      y: 0,
+      index: i
+    }));
+
+    // Simple collision resolution: spread vertically if too close
+    positions.sort((a, b) => a.x - b.x);
+    for (let i = 1; i < positions.length; i++) {
+      const prev = positions[i - 1];
+      const curr = positions[i];
+      const dx = curr.x - prev.x;
+      const minDist = circleRadius * 2 + 1;
+      
+      if (dx < minDist) {
+        // Stagger vertically
+        const offset = (i % 2 === 0 ? 1 : -1) * Math.ceil(i / 2) * 6;
+        curr.y = offset;
+      }
+    }
+
+    // Data circles
     g.selectAll(".region-circle")
-      .data(ranking, d => d.region)
-      .enter()
-      .append("circle")
-      .attr("class", d => "region-circle region-" + cssSafe(d.region))
-      .attr("cx", d => rScale(d.value))
-      .attr("cy", 0)
-      .attr("r", 4);
-  });
+      .data(positions, d => d.region)
+      .join("circle")
+      .attr("class", d => `region-circle region-${cssSafe(d.region)}`)
+      .classed("selected", d => d.region === currentRegion) // purple style
+      .attr("cx", d => d.x)
+      .attr("cy", d => d.y)
+      .attr("r", d => d.region === currentRegion ? 7 : 4); // larger for selected
 
-  // Center summary text
+    // Hit targets
+    g.selectAll(".hit-target")
+      .data(positions, d => d.region)
+      .join("circle")
+      .attr("class", "hit-target")
+      .attr("cx", d => d.x)
+      .attr("cy", d => d.y)
+      .attr("r", 14)
+      .style("fill", "transparent");
+  });
+}
+
+function buildCenterText() {
   gRoot.append("text")
     .attr("class", "center-summary")
     .attr("id", "center-percentage")
-    .attr("y", -10)
+    .attr("y", -4)
     .text("0%");
 
+  const lines = ["of metrics are stronger than the", "average of other regions"];
   gRoot.append("text")
     .attr("class", "center-subtitle")
     .attr("id", "center-subtitle")
-    .attr("y", 18)
-    .text("of metrics are stronger than the average of other regions");
+    .attr("text-anchor", "middle")
+    .selectAll("tspan")
+    .data(lines)
+    .join("tspan")
+    .attr("x", 0)
+    .attr("dy", (d, i) => i === 0 ? 22 : 16)
+    .text(d => d);
+}
 
-  // Purple arc for "strong metrics" (placeholder path)
+function buildArcs() {
+  const fullCircle = { startAngle: 0, endAngle: 2 * Math.PI };
+  
+  gRoot.append("path")
+    .attr("id", "base-arc")
+    .attr("d", arcs.base(fullCircle))
+    .style("fill", "none")
+    .style("stroke", "#f2f2f4")
+    .style("stroke-width", 10)
+    .style("stroke-linecap", "round");
+
   gRoot.append("path")
     .attr("id", "highlight-arc")
-    .attr("fill", "none")
-    .attr("stroke", "#9333ea")
-    .attr("stroke-width", 6)
-    .attr("stroke-linecap", "round");
-
-  // Initial update with default region
-  updateRadialChart(currentRegion);
+    .style("fill", "none")
+    .style("stroke", "var(--color-primary-dark)")
+    .style("stroke-width", 10)
+    .style("stroke-linecap", "round")
+    .style("visibility", "hidden");
 }
 
-/**
- * Helper: convert region name to a valid CSS class string.
- */
-function cssSafe(str) {
-  return str.replace(/\s+/g, "-").replace(/&/g, "and");
-}
-
-/**
- * Compute "strong" metrics for selected region.
- * Returns an array of metric names where selected region ranks #1.
- */
-function getStrongMetrics(selectedRegion) {
-  // TODO (Person A): you can define "strong" differently if needed.
-  return currentMetricOrder.filter(metric => {
-    const ranking = getRegionRankingForMetric(metric);
-    return ranking[0].region === selectedRegion;
-  });
-}
-
-/**
- * Update radial chart when the selected region changes.
- * Person A: implement layout bits; Person B will call this from interaction.js.
- */
 function updateRadialChart(selectedRegion) {
   currentRegion = selectedRegion;
 
-  // 1. (Person B later) Re-order currentMetricOrder so "strong" metrics are consecutive.
-  // For now, we leave order as-is; just recompute strong metrics.
-  const strongMetrics = getStrongMetrics(selectedRegion);
-  const strongPercent = Math.round(100 * strongMetrics.length / currentMetricOrder.length);
+  // Reorder metrics: strong first
+  const strong = METRICS.filter(m => {
+    const r = getRegionRankingForMetric(m);
+    return r.length && r[0].region === selectedRegion;
+  });
+  currentMetricOrder = [...strong, ...METRICS.filter(m => !strong.includes(m))];
 
-  d3.select("#center-percentage").text(strongPercent + "%");
+  scales.angle.domain(currentMetricOrder);
 
-  // 2. Re-compute purple arc over the span of strong metrics.
-  const angleScale = d3.scaleBand()
-    .domain(currentMetricOrder)
-    .range([0, 2 * Math.PI])
-    .paddingInner(0.05);
+  // Update center
+  const pct = Math.round(100 * strong.length / METRICS.length);
+  d3.select("#center-percentage").text(`${pct}%`);
 
-  const arcGen = d3.arc()
-    .innerRadius(radius + 8)
-    .outerRadius(radius + 8);
+  const t = d3.transition().duration(600);
 
-  // Simple version: cover from first strong metric to last strong metric in current order
-  if (strongMetrics.length > 0) {
-    const firstMetric = strongMetrics[0];
-    const lastMetric = strongMetrics[strongMetrics.length - 1];
+  // Update wedges
+  gRoot.selectAll(".metric-wedge")
+    .transition(t)
+    .attr("d", d => {
+      const [a0, a1] = [scales.angle(d), scales.angle(d) + scales.angle.bandwidth()];
+      return arcs.wedge({ startAngle: a0, endAngle: a1 });
+    });
 
-    const startAngle = angleScale(firstMetric);
-    const endAngle = angleScale(lastMetric) + angleScale.bandwidth();
+  // Update axes
+  gRoot.selectAll(".metric-axis")
+    .transition(t)
+    .attr("transform", d => `rotate(${getRotation(d)})`);
 
-    d3.select("#highlight-arc")
-      .attr("d", arcGen({
-        startAngle,
-        endAngle
-      }))
-      .attr("visibility", "visible");
-  } else {
-    d3.select("#highlight-arc").attr("visibility", "hidden");
-  }
+  // Update metric groups
+  gRoot.selectAll(".metric-group")
+    .transition(t)
+    .attr("transform", d => `rotate(${getRotation(d)})`);
 
-  // 3. Update circles: size/color for selected region vs. others, and x-position for values.
-  const rScale = d3.scaleLinear()
-    .domain([0, 1])
-    .range([innerRadius, radius]);
-
+  // Update circles and ranges
   gRoot.selectAll(".metric-group").each(function(metric) {
     const g = d3.select(this);
-    const ranking = getRegionRankingForMetric(metric); // recompute; could be cached
+    const ranking = getRegionRankingForMetric(metric);
+    if (!ranking.length) return;
 
-    const circles = g.selectAll(".region-circle")
-      .data(ranking, d => d.region);
+    const [minVal, maxVal] = d3.extent(ranking, d => d.value);
+    const [rMin, rMax] = [scales.r(minVal), scales.r(maxVal)];
 
-    circles.classed("selected", d => d.region === selectedRegion);
+    g.select(".metric-range-solid").transition(t).attr("x2", rMin);
+    g.select(".metric-range-dashed").transition(t).attr("x1", rMin).attr("x2", rMax);
 
-    circles
-      .transition()
-      .duration(600)
-      .attr("cx", d => rScale(d.value))
-      .attr("r", d => d.region === selectedRegion ? 7 : 4);
+    // Recalculate positions with collision detection
+    const circleRadius = 4;
+    const positions = ranking.map((d, i) => ({
+      ...d,
+      x: scales.r(d.value),
+      y: 0,
+      index: i
+    }));
+
+    positions.sort((a, b) => a.x - b.x);
+    for (let i = 1; i < positions.length; i++) {
+      const prev = positions[i - 1];
+      const curr = positions[i];
+      const dx = curr.x - prev.x;
+      const minDist = circleRadius * 2 + 1;
+      
+      if (dx < minDist) {
+        const offset = (i % 2 === 0 ? 1 : -1) * Math.ceil(i / 2) * 6;
+        curr.y = offset;
+      }
+    }
+
+  g.selectAll(".region-circle")
+    .data(positions, d => d.region)
+    .classed("selected", d => d.region === selectedRegion)
+    .transition(t)
+    .attr("cx", d => d.x)
+    .attr("cy", d => d.y)
+    .attr("r", d => d.region === selectedRegion ? 7 : 4);
+
+    g.selectAll(".hit-target")
+      .data(positions, d => d.region)
+      .transition(t)
+      .attr("cx", d => d.x)
+      .attr("cy", d => d.y);
   });
+  console.log("strong count", strong.length, "selectedRegion", selectedRegion);
 
-  // Note: hover behavior and metric reordering are handled in interaction.js
+  // Update highlight arc
+  const arc = d3.select("#highlight-arc");
+  if (strong.length) {
+    const frac = strong.length / METRICS.length;
+    const start = -Math.PI / 2;
+    const end = start + frac * 2 * Math.PI;
+    arc.attr("d", arcs.highlight({ startAngle: start, endAngle: end }))
+       .style("visibility", "visible");
+  } else {
+    arc.style("visibility", "hidden");
+  }
 }
 
-// Initialize when DOM is ready
-// document.addEventListener("DOMContentLoaded", initRadialChart); // caused an issue with data loading
+// Helpers
+const cssSafe = str => str.replace(/\s+/g, "-").replace(/&/g, "and");
+const getRotation = d => (scales.angle(d) + scales.angle.bandwidth() / 2 - Math.PI / 2) * 180 / Math.PI;
 
-document.addEventListener("DOMContentLoaded", () => {
-  const container = document.getElementById("viz-container");
-  container.innerHTML = '<p style="text-align:center;padding:50px;">Loading data...</p>';
-  
-  loadData()
-    .then(() => {
-      container.innerHTML = '';
-      initRadialChart();
-      window.dataReady = true;
-    });
-});
+document.addEventListener("DOMContentLoaded", initRadialChart);

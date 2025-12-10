@@ -1,78 +1,90 @@
 // interaction.js
-// Person B: connect dropdown, implement hover effects, metric reordering,
-// and tooltip behavior. Uses functions and global variables from layout.js & data.js.
+// Dropdown wiring, hover behavior, and tooltip
+
+const elements = {
+  select: null,
+  measure: null,
+  tooltip: null
+};
 
 document.addEventListener("DOMContentLoaded", () => {
+  elements.select = document.getElementById("region-select");
+  elements.measure = document.getElementById("region-measure");
+  elements.tooltip = d3.select(".tooltip");
+  
   setupRegionDropdown();
   setupHoverInteractions();
 });
 
-/**
- * Populate the dropdown and wire change event to updateRadialChart().
- */
 function setupRegionDropdown() {
-  const select = document.getElementById("region-select");
-  REGIONS.forEach(region => {
+  const { select } = elements;
+  
+  // Populate dropdown
+  select.append(...REGIONS.map(r => {
     const opt = document.createElement("option");
-    opt.value = region;
-    opt.textContent = region;
-    select.appendChild(opt);
-  });
+    opt.value = opt.textContent = r;
+    return opt;
+  }));
 
   select.value = REGIONS[0];
-
-  select.addEventListener("change", e => {
-    const selected = e.target.value;
-    // TODO (Person B): Reorder metrics so "strong" metrics appear consecutively.
-    // You will probably need a function that:
-    //  1. Gets strong metrics (getStrongMetrics(selectedRegion)).
-    //  2. Places them together in currentMetricOrder.
-    //  3. Re-draws axes & wedges based on new order.
-    //
-    // For now, just call update with existing order:
-    updateRadialChart(selected);
+  resizeRegionSelect();
+  
+  select.addEventListener("change", () => {
+    updateRadialChart(select.value);
+    resizeRegionSelect();
   });
 }
 
-/**
- * Attach hover behaviors to metric wedges and region circles.
- */
+function resizeRegionSelect() { // FIX THIS
+  const { select, measure } = elements;
+  const text = select.options[select.selectedIndex].text;
+
+  // Copy font properties for accurate measurement
+  const { fontFamily, fontSize, fontWeight } = getComputedStyle(select);
+  Object.assign(measure.style, { fontFamily, fontSize, fontWeight });
+
+  measure.textContent = text;
+  select.style.width = `${measure.offsetWidth + 45}px`; // 40px for padding + arrow
+}
+
 function setupHoverInteractions() {
-  const svgNode = d3.select("svg");
-  if (svgNode.empty()) return;
+  const svg = d3.select("svg");
+  if (svg.empty()) return;
 
-  const tooltip = d3.select(".tooltip");
+  const { tooltip } = elements;
 
-  // Hover over metric wedges (background gray)
-  svgNode.selectAll(".metric-wedge")
-    .on("mouseover", function (event, metric) {
-      d3.select(this).classed("hovered", true);
-    })
-    .on("mouseout", function () {
-      d3.select(this).classed("hovered", false);
-    });
+  // Wedge hover
+  svg.selectAll(".metric-wedge")
+    .on("mouseover", function() { d3.select(this).classed("hovered", true); })
+    .on("mouseout", function() { d3.select(this).classed("hovered", false); });
 
-  // Hover over circles: show tooltip
-  svgNode.selectAll(".region-circle")
-    .on("mouseover", function (event, d) {
-      const metric = d3.select(this.parentNode).attr("data-metric");
-      tooltip
-        .style("opacity", 1)
-        .html(
-          `<strong>Metric:</strong> ${metric}<br/>
-           <strong>Region:</strong> ${d.region}<br/>
-           <strong>Value:</strong> ${d.value.toFixed(3)}`
-        );
-    })
-    .on("mousemove", function (event) {
-      tooltip
-        .style("left", (event.pageX + 12) + "px")
-        .style("top", (event.pageY + 12) + "px");
-    })
-    .on("mouseout", function () {
-      tooltip.style("opacity", 0);
-    });
+  // Tooltip on hit targets
+  svg.selectAll(".hit-target")
+    .on("mouseover", showTooltip)
+    .on("mousemove", moveTooltip)
+    .on("mouseout", hideTooltip);
+}
 
-  // NOTE: after you rebind data or redraw circles (e.g., when reordering metrics),
-  // you must call setupHoverInteractions() again to re-attach listeners.
+function showTooltip(event, d) {
+  const metric = d3.select(this.parentNode).attr("data-metric");
+  const pct = (d.value * 100).toFixed(1);
+
+  elements.tooltip
+    .style("opacity", 1)
+    .html(`
+      <div class="tooltip-value">${pct}%</div>
+      <div class="tooltip-divider"></div>
+      <div class="tooltip-row"><span class="tooltip-label">METRIC :</span> <span>${metric}</span></div>
+      <div class="tooltip-row"><span class="tooltip-label">REGION :</span> <span>${d.region}</span></div>
+    `);
+}
+
+function moveTooltip(event) {
+  elements.tooltip
+    .style("left", `${event.pageX + 16}px`)
+    .style("top", `${event.pageY + 16}px`);
+}
+
+function hideTooltip() {
+  elements.tooltip.style("opacity", 0);
 }

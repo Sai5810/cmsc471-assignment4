@@ -1,27 +1,34 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Assignment 4 – Regional Metrics Radial Viz</title>
-  <link rel="stylesheet" href="styles.css" />
-  <!-- D3 v7 -->
-  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Radial Regional Metrics</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="header">
-    <h1>How do the
-      <select id="region-select"></select>
+    <h1>
+      How do the
+      <span class="region-pill">
+        <span id="region-measure" aria-hidden="true"></span>
+        <select id="region-select" aria-label="Select region"></select>
+      </span>
       on average compare to the other regions across metrics?
     </h1>
   </header>
 
-  <main>
-    <section id="viz-container">
-      <!-- SVG will be created by layout.js -->
+  <main id="viz-wrapper">
+    <aside id="metrics-panel">
+      <h2>All metrics</h2>
+      <p>Hover over a circle<br>or click on a metric<br>to view details.</p>
+    </aside>
+    <section id="viz-container" role="img" aria-label="Radial chart showing regional metrics comparison">
+      <!-- SVG injected by layout.js -->
     </section>
   </main>
 
-  <!-- Order matters: data -> layout -> interaction -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
   <script src="data.js"></script>
   <script src="layout.js"></script>
   <script src="interaction.js"></script>
