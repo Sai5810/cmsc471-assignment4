@@ -17,11 +17,11 @@ const METRICS = [
   "GDP per capita",
   "Infant mortality",
   "Electricity access",
-  "Education index",
-  "Life expectancy",
+  "Education spending",
+  "Human development",
   "Health $ per capita",
   "CO2 emissions",
-  "Internet access",
+  "Political stability",
   "Rule of law",
   "Extreme poverty"
 ];
@@ -160,9 +160,9 @@ function loadData() {
       gdpPerCapita:       parseValue(row[21]) || parseValue(row[20]) || parseValue(row[19]) || parseValue(row[18]),
       infantMortality:    parseValue(row[37]),
       electricityAccess:  parseValue(row[51]),
-      educationSpending:  parseValue(row[44]) || parseValue(row[43]) || parseValue(row[42]) || parseValue(row[41]),
+      educationSpending:  parseValue(row[44]) || parseValue(row[43]),
       hdi:                parseValue(row[9]) || parseValue(row[8]),
-      healthPerCapita:    parseValue(row[34]),
+      healthPerCapita:    parseValue(row[36]) || parseValue(row[35]) || parseValue(row[34]),
       co2Emissions:       parseValue(row[77]),
       politicalStability: parseValue(row[58]) || parseValue(row[57]),
       ruleOfLaw:          parseValue(row[64]) || parseValue(row[63]),
@@ -178,17 +178,22 @@ function loadData() {
     const rawAverages = {};
     REGIONS.forEach(region => {
       const regionData = grouped.get(region) || [];
+      console.log(`${region}: ${regionData.length} countries`);
+
+      console.log(`  GDP valid values: ${regionData.filter(d => d.gdpPerCapita != null).length}`);
+      console.log(`  Infant mort valid: ${regionData.filter(d => d.infantMortality != null).length}`);
+      console.log(`  Education valid: ${regionData.filter(d => d.educationSpending != null).length}`);
       rawAverages[region] = {
-        "GDP per capita":      d3.mean(regionData, d => d.gdpPerCapita) || 0,
-        "Infant mortality":    d3.mean(regionData, d => d.infantMortality) || 0,
-        "Electricity access":  d3.mean(regionData, d => d.electricityAccess) || 0,
-        "Education spending":  d3.mean(regionData, d => d.educationSpending) || 0,
-        "Human development":   d3.mean(regionData, d => d.hdi) || 0,
-        "Health $ per capita": d3.mean(regionData, d => d.healthPerCapita) || 0,
-        "CO2 emissions":       d3.mean(regionData, d => d.co2Emissions) || 0,
-        "Political stability": d3.mean(regionData, d => d.politicalStability) || 0,
-        "Rule of law":         d3.mean(regionData, d => d.ruleOfLaw) || 0,
-        "Extreme poverty":     d3.mean(regionData, d => d.extremePoverty) || 0
+        "GDP per capita":      d3.mean(regionData, d => d.gdpPerCapita),
+        "Infant mortality":    d3.mean(regionData, d => d.infantMortality),
+        "Electricity access":  d3.mean(regionData, d => d.electricityAccess),
+        "Education spending":  d3.mean(regionData, d => d.educationSpending),
+        "Human development":   d3.mean(regionData, d => d.hdi),
+        "Health $ per capita": d3.mean(regionData, d => d.healthPerCapita),
+        "CO2 emissions":       d3.mean(regionData, d => d.co2Emissions),
+        "Political stability": d3.mean(regionData, d => d.politicalStability),
+        "Rule of law":         d3.mean(regionData, d => d.ruleOfLaw),
+        "Extreme poverty":     d3.mean(regionData, d => d.extremePoverty)
       };
     });
     
@@ -197,22 +202,24 @@ function loadData() {
     REGIONS.forEach(region => REGION_METRIC_VALUES[region] = {});
     
     METRICS.forEach(metric => {
-      const values = REGIONS.map(r => rawAverages[r][metric]);
+      const values = REGIONS.map(r => rawAverages[r][metric]).filter(v => v !== undefined);
       const [min, max] = d3.extent(values);
       
       const scale = d3.scaleLinear()
-        .domain([min, max])
-        .range([0, 1]);
+                    .domain([min, max])
+                    .range([0, 1]);
       
       REGIONS.forEach(region => {
-        let normalized = (min === max) ? 0.5 : scale(rawAverages[region][metric]);
-        
+        const rawVal = rawAverages[region][metric];
+      
+        let normalized = (min === max) ? 0.5 : scale(rawVal);
+          
         if (LOWER_IS_BETTER.includes(metric)) {
           normalized = 1 - normalized;
         }
-        
-        REGION_METRIC_VALUES[region][metric] = 0.1 + normalized * 0.85;
-      });
+          
+          REGION_METRIC_VALUES[region][metric] = 0.1 + normalized * 0.85;
+        });
     });
     
     console.log('Raw averages:', REGION_METRIC_RAW);
@@ -257,6 +264,10 @@ function getRegionRankingForMetric(metric) {
     region: r,
     value: getMetricValue(r, metric),
     raw: getRawMetricValue(r, metric)
-  }));
+  })).filter(d => d.value !== null);
+
+  console.log(metric);
+  console.log(rows);
+
   return rows.sort((a, b) => d3.descending(a.value, b.value));
 }
