@@ -223,4 +223,16 @@ function updateRadialChart(selectedRegion) {
 }
 
 // Initialize when DOM is ready
-document.addEventListener("DOMContentLoaded", initRadialChart);
+// document.addEventListener("DOMContentLoaded", initRadialChart); // caused an issue with data loading
+
+document.addEventListener("DOMContentLoaded", () => {
+  const container = document.getElementById("viz-container");
+  container.innerHTML = '<p style="text-align:center;padding:50px;">Loading data...</p>';
+  
+  loadData()
+    .then(() => {
+      container.innerHTML = '';
+      initRadialChart();
+      window.dataReady = true;
+    });
+});
