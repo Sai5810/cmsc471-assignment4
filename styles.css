@@ -1,91 +1,235 @@
+/* Design tokens */
+:root {
+  /* Colors */
+  --color-bg: #fafafa;
+  --color-surface: #fff;
+  --color-border: #ddd;
+  --color-text: #222;
+  --color-muted: #555;
+  --color-muted-soft: #444;
+
+  --color-primary: #F3F1FD;
+  --color-primary-dark: #846CEF;
+  --color-primary-soft: #f4f0ff;
+
+  --color-axis-base: #f0f0f0;
+  --color-range-solid: #b0b0b0;
+  --color-range-dashed: #606060;
+
+  --color-tooltip-bg: rgba(255, 255, 255, 0.95);
+  --color-tooltip-border: #e0e0e0;
+  --color-tooltip-shadow: rgba(0, 0, 0, 0.15);
+
+  /* Typography */
+  --font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-size-body: 14px;
+  --font-size-heading: 18px;
+  --font-size-center: 40px;
+  --font-size-center-sub: 14px;
+  --font-size-metric-label: 11px;
+  --font-size-tooltip: 12px;
+  --font-size-tooltip-value: 20px;
+  --font-size-pill: 14px;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 6px;
+  --space-md: 10px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+
+  /* Radii */
+  --radius-pill: 9999px;
+  --radius-tooltip: 10px;
+
+  /* Stroke widths */
+  --stroke-circle: 1px;
+  --stroke-circle-selected: 2px;
+  --stroke-range: 1.3px;
+
+  /* Misc */
+  --shadow-tooltip: 0 4px 16px var(--color-tooltip-shadow);
+}
+
+/* Global */
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #fafafa;
-  color: #222;
+  font-family: var(--font-family);
+  background: var(--color-bg);
+  color: var(--color-text);
 }
 
 .header {
-  padding: 16px 24px;
-  border-bottom: 1px solid #ddd;
-  background: #fff;
+  padding: var(--space-lg) var(--space-xl);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  text-align: center;
 }
 
-.header h1 {
-  font-size: 18px;
+h1 {
+  font-size: var(--font-size-heading);
   font-weight: 500;
+  margin: 0;
 }
 
-#viz-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 24px;
-}
-
-/* SVG sizing */
 svg {
   width: 900px;
   height: 700px;
 }
 
-/* Center percentage text */
+/* Center text */
 .center-summary {
-  font-size: 40px;
+  font-size: var(--font-size-center);
   font-weight: 600;
   text-anchor: middle;
 }
 
 .center-subtitle {
-  font-size: 14px;
-  fill: #555;
+  font-size: var(--font-size-center-sub);
+  fill: var(--color-muted);
   text-anchor: middle;
 }
 
-/* Metric axis label */
+/* Metrics UI */
 .metric-label {
-  font-size: 11px;
+  font-size: var(--font-size-metric-label);
   text-anchor: middle;
+  fill: var(--color-muted-soft);
 }
 
-/* Region circles */
 .region-circle {
   fill: none;
-  stroke: #555;
-  stroke-width: 1px;
+  stroke: var(--color-muted);
+  stroke-width: var(--stroke-circle);
 }
 
 .region-circle.selected {
-  fill: #a855f7; /* purple-ish */
-  stroke: #7c3aed;
-  stroke-width: 2px;
+  fill: var(--color-primary);
+  stroke: var(--color-primary-dark);
+  stroke-width: var(--stroke-circle-selected);
 }
 
-/* Background wedge hover */
 .metric-wedge {
   fill: transparent;
 }
 
 .metric-wedge.hovered {
-  fill: #f0f0f0;
+  fill: var(--color-axis-base);
+}
+
+.metric-range-solid {
+  stroke: var(--color-range-solid);
+  stroke-width: var(--stroke-range);
+}
+
+.metric-range-dashed {
+  stroke: var(--color-range-dashed);
+  stroke-width: var(--stroke-range);
+  stroke-dasharray: 2, 4;
+}
+
+.hit-target {
+  pointer-events: all;
 }
 
 /* Tooltip */
 .tooltip {
   position: absolute;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 8px 10px;
-  font-size: 12px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  background: var(--color-tooltip-bg);
+  border-radius: var(--radius-tooltip);
+  padding: 10px 14px;
+  font-size: var(--font-size-tooltip);
+  box-shadow: var(--shadow-tooltip);
   pointer-events: none;
   opacity: 0;
+  transition: opacity 0.2s;
 }
 
-/* Dropdown */
+.tooltip-value {
+  font-size: var(--font-size-tooltip-value);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.tooltip-divider {
+  height: 1px;
+  background: var(--color-tooltip-border);
+  margin: 4px 0 6px 0;
+}
+
+.tooltip-row {
+  display: flex;
+  gap: 4px;
+  margin: 1px 0;
+}
+
+.tooltip-label {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* Layout */
+#viz-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+#metrics-panel {
+  position: absolute;
+  top: 10px;
+  left: 40px;
+  width: 200px;
+  font-size: 13px;
+  color: var(--color-muted-soft);
+}
+
+#metrics-panel h2 {
+  font-size: 15px;
+  margin: 0 0 6px 0;
+  font-weight: 600;
+}
+
+#viz-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Region select pill */
+.region-pill {
+  position: relative;
+  display: inline-block;
+}
+
+#region-measure {
+  position: absolute;
+  visibility: hidden;
+  white-space: nowrap;
+  font-size: var(--font-size-pill);
+  font-weight: 600;
+}
+
 #region-select {
-  font-size: 14px;
-  padding: 4px 6px;
-  margin-left: 4px;
+  appearance: none;
+  background: var(--color-primary-soft);
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--color-primary-dark);
+  padding: 4px 26px 4px 12px;
+  font-size: var(--font-size-pill);
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+}
+
+.region-pill::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid #4b5563;
 }
