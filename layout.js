@@ -211,12 +211,13 @@ function updateRadialChart(selectedRegion) {
     const circles = g.selectAll(".region-circle")
       .data(ranking, d => d.region);
 
+    circles.classed("selected", d => d.region === selectedRegion);
+
     circles
       .transition()
       .duration(600)
       .attr("cx", d => rScale(d.value))
-      .attr("r", d => d.region === selectedRegion ? 7 : 4)
-      .classed("selected", d => d.region === selectedRegion);
+      .attr("r", d => d.region === selectedRegion ? 7 : 4);
   });
 
   // Note: hover behavior and metric reordering are handled in interaction.js
