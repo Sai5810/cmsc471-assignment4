@@ -204,17 +204,25 @@ function loadData() {
       const scale = d3.scaleLinear()
                     .domain([min, max])
                     .range([0, 1]);
+
+      const mean = d3.mean(values);
+      const std = d3.deviation(values);
       
       REGIONS.forEach(region => {
         const rawVal = rawAverages[region][metric];
       
-        let normalized = (min === max) ? 0.5 : scale(rawVal);
+        let zScore = (rawVal - mean) / std;
           
         if (LOWER_IS_BETTER.includes(metric)) {
-          normalized = 1 - normalized;
+          zScore = -zScore;
         }
-          
-          REGION_METRIC_VALUES[region][metric] = 0.1 + normalized * 0.85;
+
+        const zMin = -2.5;
+        const zMax = +2.5;
+        const clipped = Math.max(zMin, Math.min(zMax, zScore));
+        const normalized = (clipped - zMin) / (zMax - zMin);
+        
+          REGION_METRIC_VALUES[region][metric] = normalized;
         });
     });
     
