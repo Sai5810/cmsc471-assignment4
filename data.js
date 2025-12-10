@@ -154,19 +154,19 @@ function loadData() {
     if (!region) return null;
     
     return {
-      country: row[0],
+      country: d['indicator'],
       iso: isoCode,
       region: region,
-      gdpPerCapita:       parseValue(row[21]) || parseValue(row[20]) || parseValue(row[19]) || parseValue(row[18]),
-      infantMortality:    parseValue(row[37]),
-      electricityAccess:  parseValue(row[51]),
-      educationSpending:  parseValue(row[44]) || parseValue(row[43]),
-      hdi:                parseValue(row[9]) || parseValue(row[8]),
-      healthPerCapita:    parseValue(row[36]) || parseValue(row[35]) || parseValue(row[34]),
-      co2Emissions:       parseValue(row[77]),
-      politicalStability: parseValue(row[58]) || parseValue(row[57]),
-      ruleOfLaw:          parseValue(row[64]) || parseValue(row[63]),
-      extremePoverty:     parseValue(row[50])
+      gdpPerCapita:       parseValue(d['GDP per capita in $ (PPP)']),
+      infantMortality:    parseValue(d['infant mortality']),
+      electricityAccess:  parseValue(d['% of population with access to electricity']),
+      educationSpending:  parseValue(d['Education as % of GDP']),
+      hdi:                parseValue(d['human development index']),
+      healthPerCapita:    parseValue(d['health expenditure \nper person']),
+      co2Emissions:       parseValue(d['CO2e emissions per capita']),
+      politicalStability: parseValue(d['political stability & absence of violence']),
+      ruleOfLaw:          parseValue(d['rule of law']),
+      extremePoverty:     parseValue(d['% of population in extreme poverty'])
     };
   })
   .then(data => {
@@ -178,11 +178,7 @@ function loadData() {
     const rawAverages = {};
     REGIONS.forEach(region => {
       const regionData = grouped.get(region) || [];
-      console.log(`${region}: ${regionData.length} countries`);
 
-      console.log(`  GDP valid values: ${regionData.filter(d => d.gdpPerCapita != null).length}`);
-      console.log(`  Infant mort valid: ${regionData.filter(d => d.infantMortality != null).length}`);
-      console.log(`  Education valid: ${regionData.filter(d => d.educationSpending != null).length}`);
       rawAverages[region] = {
         "GDP per capita":      d3.mean(regionData, d => d.gdpPerCapita),
         "Infant mortality":    d3.mean(regionData, d => d.infantMortality),

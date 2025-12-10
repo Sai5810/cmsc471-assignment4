@@ -331,4 +331,15 @@ function updateRadialChart(selectedRegion) {
 const cssSafe = str => str.replace(/\s+/g, "-").replace(/&/g, "and");
 const getRotation = d => (scales.angle(d) + scales.angle.bandwidth() / 2 - Math.PI / 2) * 180 / Math.PI;
 
-document.addEventListener("DOMContentLoaded", initRadialChart);
+document.addEventListener("DOMContentLoaded", () => {
+  const container = document.getElementById("viz-container");
+  container.innerHTML = '<p style="text-align:center;padding:50px;">Loading data...</p>';
+  
+  loadData()
+    .then(() => {
+      container.innerHTML = '';
+      initRadialChart();
+
+      window.dataReady = true;
+    });
+});
