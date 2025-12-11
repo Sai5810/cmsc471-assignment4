@@ -1,4 +1,3 @@
-// layout.js
 // Radial layout with center text, base arc, highlight arc, and metric ranges
 
 let svg, gRoot, tooltipDiv;
@@ -41,7 +40,8 @@ function initRadialChart() {
   scales.r.range([innerRadius + 10, radius - 10]);
 
   // Configure arcs
-  arcs.wedge.innerRadius(innerRadius).outerRadius(radius + 20);
+  arcs.wedge.innerRadius(innerRadius).outerRadius(radius + 4);
+  
   const arcR = [radius + 4, radius + 10];
   arcs.base.innerRadius(arcR[0]).outerRadius(arcR[1]);
   arcs.highlight.innerRadius(arcR[0]).outerRadius(arcR[1]);
@@ -66,7 +66,13 @@ function buildWedges() {
     .attr("d", d => {
       const [a0, a1] = [scales.angle(d), scales.angle(d) + scales.angle.bandwidth()];
       return arcs.wedge({ startAngle: a0, endAngle: a1 });
-    });
+    })
+    .on("mouseover", function() { d3.select(this).style("fill", "#cccccc"); })
+    .on("mouseout", function() { d3.select(this).style("fill", null); });
+}
+
+function normalizeAngle(deg) {
+  return (deg % 360 + 360) % 360;
 }
 
 function buildAxes() {
@@ -86,31 +92,24 @@ function buildAxes() {
 
   axes.append("text")
     .attr("class", "metric-label")
-    .attr("x", d => {
-      const angle = scales.angle(d) + scales.angle.bandwidth() / 2;
-      return innerRadius + 40;
-    })
-    .attr("dy", d => {
-      const angle = scales.angle(d) + scales.angle.bandwidth() / 2;
-      if (angle < Math.PI) {
-        return "-0.5em";
-      } else {
-        return "1em";
-      }
+    .attr("x", innerRadius + 60)
+    .attr("y", 10)
+    .attr("dy", "0.35em")
+    .attr("text-anchor", d => {
+      const a = normalizeAngle(getRotation(d));
+      return (a > 90 && a < 270) ? "end" : "start";
     })
     .attr("transform", d => {
-      const angle = scales.angle(d) + scales.angle.bandwidth() / 2;
-      const degrees = (angle * 180) / Math.PI - 90;
-      const x = innerRadius + 40;
-      
-      // Flip text on left side for readability
-      if (angle > Math.PI / 2 && angle < 3 * Math.PI / 2) {
-        return `rotate(${degrees + 180}, ${x}, 0)`;
+      const rot = getRotation(d);
+      const a = normalizeAngle(rot);
+      const x = innerRadius + 60;
+      if (a > 90 && a < 270) {
+        return `rotate(180 ${x} 0)`;
       }
-      return "";
+      return null;
     })
-    .attr("text-anchor", "middle")
     .text(d => d.toUpperCase());
+
 }
 
 function buildMetricGroups() {
@@ -174,7 +173,10 @@ function buildMetricGroups() {
       .classed("selected", d => d.region === currentRegion) // purple style
       .attr("cx", d => d.x)
       .attr("cy", d => d.y)
-      .attr("r", d => d.region === currentRegion ? 7 : 4); // larger for selected
+      .attr("r", d => d.region === currentRegion ? 7 : 4)
+      .on("mouseover", showTooltip)
+      .on("mousemove", moveTooltip)
+      .on("mouseout", hideTooltip);
 
     // Hit targets
     g.selectAll(".hit-target")
@@ -184,7 +186,10 @@ function buildMetricGroups() {
       .attr("cx", d => d.x)
       .attr("cy", d => d.y)
       .attr("r", 14)
-      .style("fill", "transparent");
+      .style("fill", "transparent")
+      .on("mouseover", showTooltip)
+      .on("mousemove", moveTooltip)
+      .on("mouseout", hideTooltip);
   });
 }
 
@@ -314,17 +319,55 @@ function updateRadialChart(selectedRegion) {
   });
   console.log("strong count", strong.length, "selectedRegion", selectedRegion);
 
-  // Update highlight arc
   const arc = d3.select("#highlight-arc");
   if (strong.length) {
-    const frac = strong.length / METRICS.length;
-    const start = -Math.PI / 2;
-    const end = start + frac * 2 * Math.PI;
-    arc.attr("d", arcs.highlight({ startAngle: start, endAngle: end }))
+    const firstMetric = strong[0];
+    const lastMetric = strong[strong.length - 1];
+    
+    const startAngle = scales.angle(firstMetric);
+    const endAngle = scales.angle(lastMetric) + scales.angle.bandwidth();
+    
+    arc.attr("d", arcs.highlight({ startAngle: startAngle, endAngle: endAngle }))
        .style("visibility", "visible");
   } else {
     arc.style("visibility", "hidden");
   }
+}
+
+function showTooltip(event, d) {
+  const metric = d3.select(this.parentNode).attr("data-metric");
+  
+  let val = d.raw;
+  let valStr = "N/A";
+  if (typeof val === 'number') {
+    valStr = val.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  }
+
+  const PERCENTAGE_METRICS = ["Electricity access", "Education spending", "Extreme poverty"];
+  if (PERCENTAGE_METRICS.includes(metric) && valStr !== "N/A") {
+    valStr += "%";
+  }
+
+  tooltipDiv
+    .style("opacity", 1)
+    .style("left", `${event.pageX + 16}px`)
+    .style("top", `${event.pageY + 16}px`)
+    .html(`
+      <div class="tooltip-value">${valStr}</div>
+      <div class="tooltip-divider"></div>
+      <div class="tooltip-row"><span class="tooltip-label">METRIC :</span> <span>${metric}</span></div>
+      <div class="tooltip-row"><span class="tooltip-label">REGION :</span> <span>${d.region}</span></div>
+    `);
+}
+
+function moveTooltip(event) {
+  tooltipDiv
+    .style("left", `${event.pageX + 16}px`)
+    .style("top", `${event.pageY + 16}px`);
+}
+
+function hideTooltip() {
+  tooltipDiv.style("opacity", 0);
 }
 
 // Helpers

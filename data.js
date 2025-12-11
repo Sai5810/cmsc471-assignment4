@@ -2,7 +2,6 @@
 // Person A: load data, compute averages per region & metric, and expose
 // a clean structure for layout.js and interaction.js.
 
-// Example regions and metrics (placeholder; replace with real ones)
 const REGIONS = [
   "Americas",
   "East Asia & Pacific",
@@ -105,33 +104,8 @@ const ISO_TO_REGION = {
   "ZWE": "Sub-Saharan Africa"
 };
 
-// This object is where averaged, normalized values per region+metric
-// should live. The visualization will use this, not raw country rows.
-// You can normalize to [0,1] for radial distance.
-//
-// Example structure:
-//
-// REGION_METRIC_VALUES = {
-//   "Americas": {
-//      "GDP per capita": 0.7,
-//      "Infant mortality": 0.2,
-//      ...
-//   },
-//   "East Asia & Pacific": { ... },
-//   ...
-// };
-//
 let REGION_METRIC_VALUES = {};
 let REGION_METRIC_RAW = {};
-
-// TODO (Person A):
-// 1. Load your CSV from Assignment 3 (via d3.csv in layout.js or here).
-// 2. Compute average metric values per region.
-// 3. Normalize each metric across regions to [0,1] if you want.
-// 4. Populate REGION_METRIC_VALUES as described above.
-//
-// For now, put some fake values so the rest of the code runs.
-
 
 function parseValue(val) {
   if (val === null || val === undefined || val === "-" || val === "" || val === "..." || val === ",") {
@@ -142,17 +116,15 @@ function parseValue(val) {
   return isNaN(num) ? null : num;
 }
 
-
 function loadData() {
   return d3.csv('assignment 3 & 4 dataset - assignment 3 and 4.csv', d => {
-    const row = Object.values(d);
-    const isoCode = row[1];
+    const isoCode = d['ISO Country code'];
     
     if (!isoCode || isoCode.length !== 3) return null;
     
     const region = ISO_TO_REGION[isoCode];
     if (!region) return null;
-    
+
     return {
       country: d['indicator'],
       iso: isoCode,
@@ -162,7 +134,7 @@ function loadData() {
       electricityAccess:  parseValue(d['% of population with access to electricity']),
       educationSpending:  parseValue(d['Education as % of GDP']),
       hdi:                parseValue(d['human development index']),
-      healthPerCapita:    parseValue(d['health expenditure \nper person']),
+      healthPerCapita:    parseValue(d['health expenditure \r\nper person'] || d['health expenditure \nper person']),
       co2Emissions:       parseValue(d['CO2e emissions per capita']),
       politicalStability: parseValue(d['political stability & absence of violence']),
       ruleOfLaw:          parseValue(d['rule of law']),
@@ -246,9 +218,6 @@ function loadData() {
   });
 }
 
-/**
- * Utility: get metric value for region.
- */
 function getMetricValue(region, metric) {
   return REGION_METRIC_VALUES[region][metric];
 }
@@ -257,21 +226,12 @@ function getRawMetricValue(region, metric) {
   return REGION_METRIC_RAW[region][metric];
 }
 
-/**
- * Utility: for a given metric, return an array of:
- * [{ region, value }, ...] sorted descending by "better" performance.
- * Person A should define "better" (e.g., higher is better, lower is better for some metrics).
- */
 function getRegionRankingForMetric(metric) {
-  // TODO (Person A): handle metrics where lower is better (e.g., mortality).
   const rows = REGIONS.map(r => ({
     region: r,
     value: getMetricValue(r, metric),
     raw: getRawMetricValue(r, metric)
   })).filter(d => d.value !== null);
-
-  console.log(metric);
-  console.log(rows);
 
   return rows.sort((a, b) => d3.descending(a.value, b.value));
 }
